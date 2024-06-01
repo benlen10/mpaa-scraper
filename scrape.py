@@ -24,7 +24,7 @@ driver = webdriver.Chrome(service=service, options=options)
 with open('mpaa_db.csv', 'w') as file:
     csv_writer = csv.writer(file)
 
-    for film_year in range(1968, 2024):
+    for film_year in range(1990, 2024): #1968
 
         for film_rating in film_rating_list:
 
@@ -52,19 +52,16 @@ with open('mpaa_db.csv', 'w') as file:
                     film_title = m.find('div', attrs={'class':'resultData _filmTitle topRow'}).string
                     print("Film Title: " + film_title)
 
-                    # film_rating = m.find('div', attrs={'class':'resultData _filmRating'}).string
-                    # print("Film Rating: " + film_rating)
-
                     cert_number = m.find_all('div', attrs={'class':'resultData'})[2].string
                     
                     if cert_number is None:
                         cert_number = "NA"
                     print("Cert Number: " + cert_number)
 
-                    rating_descriptors = m.find_all('div', attrs={'class':'resultData'})[3].string
+                    rating_descriptors = m.find_all('div', attrs={'class':'resultData'})[3].string.strip()
                     print("Descriptors: " + rating_descriptors)
 
-                    other_notes = m.find_all('div', attrs={'class':'resultData'})[5].string
+                    other_notes = m.find_all('div', attrs={'class':'resultData'})[5].string.strip()
                     print("Other Notes: " + other_notes)
                 
                     csv_writer.writerow([cert_number, film_title, str(film_year), film_rating, rating_descriptors, other_notes])
