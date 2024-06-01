@@ -33,7 +33,7 @@ with open('output/mpaa_db.csv', 'w') as file:
 
             #Request url
             driver.get(current_url)
-            sleep(0.5)
+            sleep(1)
 
             # Fetch source HTML
             html = driver.page_source
@@ -80,7 +80,7 @@ with open('output/mpaa_db.csv', 'w') as file:
 
                     if next_button.get_attribute("href"):
                         next_button.click()
-                        sleep(0.5) 
+                        sleep(1) 
                     else:
                         has_next_page = False
                 else:
