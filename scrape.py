@@ -21,20 +21,21 @@ service = Service(executable_path='chromedriver/chromedriver')
 options = webdriver.ChromeOptions()
 driver = webdriver.Chrome(service=service, options=options)
 
-with open('mpaa_db.csv', 'w') as file:
+with open('output/mpaa_db.csv', 'w') as file:
     csv_writer = csv.writer(file)
 
-    for film_year in range(1990, 2024): #1968
+    for film_year in range(1990, 2025): #1968
 
         for film_rating in film_rating_list:
 
             # Generate current url
             current_url = f'https://www.filmratings.com/Search?filmYear={film_year}&filmRating={film_rating}'
 
-            #request url
+            #Request url
             driver.get(current_url)
             sleep(1) 
 
+            # Fetch source HTML
             html = driver.page_source
             webpage = BeautifulSoup(html,'html.parser')
 
@@ -49,8 +50,9 @@ with open('mpaa_db.csv', 'w') as file:
                 for m in movies_list:
                     print("\n")
 
-                    film_title = m.find('div', attrs={'class':'resultData _filmTitle topRow'}).string
-                    print("Film Title: " + film_title)
+                    film_title_with_date = m.find('div', attrs={'class':'resultData _filmTitle topRow'}).string
+                    print("Film Title: " + film_title_with_date)
+                    film_title = film_title_with_date[:-7]
 
                     cert_number = m.find_all('div', attrs={'class':'resultData'})[2].string
                     
@@ -61,17 +63,24 @@ with open('mpaa_db.csv', 'w') as file:
                     rating_descriptors = m.find_all('div', attrs={'class':'resultData'})[3].string.strip()
                     print("Descriptors: " + rating_descriptors)
 
-                    other_notes = m.find_all('div', attrs={'class':'resultData'})[5].string.strip()
+                    distributor = m.find_all('div', attrs={'class':'resultData'})[4].string.strip()
+                    print("Distributor: " + distributor)
+
+                    alternate_titles = m.find_all('div', attrs={'class':'resultData'})[5].string.strip()
+                    print("Alternate Notes: " + alternate_titles)
+
+                    other_notes = m.find_all('div', attrs={'class':'resultData'})[6].string.strip()
                     print("Other Notes: " + other_notes)
                 
-                    csv_writer.writerow([cert_number, film_title, str(film_year), film_rating, rating_descriptors, other_notes])
+                    # Write data for the current film to the output CSV file
+                    csv_writer.writerow([cert_number, film_title, str(film_year), film_rating, rating_descriptors, alternate_titles, other_notes])
                 
                 if len(webpage.find_all('a', attrs={'class':'next'})) > 0:
                     next_button = driver.find_element(By.CLASS_NAME, "next")
 
                     if next_button.get_attribute("href"):
                         next_button.click()
-                        sleep(1) 
+                        sleep(0.5) 
                     else:
                         has_next_page = False
                 else:
