@@ -33,7 +33,7 @@ with open('output/mpaa_db.csv', 'w') as file:
 
             #Request url
             driver.get(current_url)
-            sleep(1) 
+            sleep(0.5)
 
             # Fetch source HTML
             html = driver.page_source
@@ -50,12 +50,10 @@ with open('output/mpaa_db.csv', 'w') as file:
                 for m in movies_list:
                     print("\n")
 
-                    film_title_with_date = m.find('div', attrs={'class':'resultData _filmTitle topRow'}).string
-                    print("Film Title: " + film_title_with_date)
-                    film_title = film_title_with_date[:-7]
+                    film_title = m.find('div', attrs={'class':'resultData _filmTitle topRow'}).string # [:-7]
+                    print("Film Title: " + film_title)
 
                     cert_number = m.find_all('div', attrs={'class':'resultData'})[2].string
-                    
                     if cert_number is None:
                         cert_number = "NA"
                     print("Cert Number: " + cert_number)
@@ -63,11 +61,13 @@ with open('output/mpaa_db.csv', 'w') as file:
                     rating_descriptors = m.find_all('div', attrs={'class':'resultData'})[3].string.strip()
                     print("Descriptors: " + rating_descriptors)
 
-                    distributor = m.find_all('div', attrs={'class':'resultData'})[4].string.strip()
+                    distributor = m.find_all('div', attrs={'class':'resultData'})[4].string
+                    if distributor is None:
+                        distributor = "NA"
                     print("Distributor: " + distributor)
 
                     alternate_titles = m.find_all('div', attrs={'class':'resultData'})[5].string.strip()
-                    print("Alternate Notes: " + alternate_titles)
+                    print("Alternate Titles: " + alternate_titles)
 
                     other_notes = m.find_all('div', attrs={'class':'resultData'})[6].string.strip()
                     print("Other Notes: " + other_notes)
