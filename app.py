@@ -1,5 +1,6 @@
 import sqlite3
 import csv
+import subprocess
 from flask import Flask, render_template, request, jsonify, send_file
 from pathlib import Path
 import io
@@ -193,13 +194,33 @@ def get_stats():
     cursor.execute('SELECT DISTINCT rating FROM ratings WHERE rating != "" ORDER BY rating')
     ratings = [row[0] for row in cursor.fetchall()]
 
+    cursor.execute('SELECT MAX(created_at) FROM ratings')
+    most_recent_date = cursor.fetchone()[0]
+
     conn.close()
 
     return jsonify({
         'total': total,
         'years': years,
-        'ratings': ratings
+        'ratings': ratings,
+        'most_recent_date': most_recent_date
     })
+
+@app.route('/api/fetch-new-data', methods=['POST'])
+def fetch_new_data():
+    """Trigger the scraper to fetch new data"""
+    try:
+        # Run scrape.py as a subprocess
+        result = subprocess.run(['python', 'scrape.py'], capture_output=True, text=True, timeout=600)
+
+        if result.returncode == 0:
+            return jsonify({'status': 'success', 'message': 'Data fetch completed successfully'})
+        else:
+            return jsonify({'status': 'error', 'message': f'Scraper failed: {result.stderr}'}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({'status': 'error', 'message': 'Scraper timed out after 10 minutes'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     init_db()

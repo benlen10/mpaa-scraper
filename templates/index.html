@@ -39,7 +39,7 @@
 
         .filters {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto;
+            grid-template-columns: 2fr 1fr 1fr auto auto;
             gap: 15px;
             margin-bottom: 25px;
         }
@@ -168,6 +168,7 @@
                 <option value="">All Ratings</option>
             </select>
             <button class="secondary" onclick="exportCSV()">Export to CSV</button>
+            <button onclick="fetchNewData()">Fetch New Data</button>
         </div>
 
         <div id="content">
@@ -190,8 +191,9 @@
             const response = await fetch('/api/stats');
             stats = await response.json();
 
-            document.getElementById('stats').textContent =
-                `Total: ${stats.total.toLocaleString()} films`;
+            const mostRecentDate = stats.most_recent_date ? new Date(stats.most_recent_date).toLocaleDateString() : 'Unknown';
+            document.getElementById('stats').innerHTML =
+                `Total: ${stats.total.toLocaleString()} films<br>Most recent: ${mostRecentDate}`;
 
             const yearSelect = document.getElementById('year');
             stats.years.forEach(year => {
@@ -303,6 +305,32 @@
 
             const params = new URLSearchParams({ search, year, rating });
             window.location.href = `/api/export?${params}`;
+        }
+
+        async function fetchNewData() {
+            if (!confirm('This will fetch new film ratings data from filmratings.com. This may take several minutes. Continue?')) {
+                return;
+            }
+
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">Fetching new data... This may take several minutes. Please do not close this page.</div>';
+
+            try {
+                const response = await fetch('/api/fetch-new-data', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert('Data fetch completed successfully!');
+                    loadStats();
+                    loadRatings();
+                } else {
+                    alert('Error: ' + result.message);
+                    loadRatings();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                loadRatings();
+            }
         }
 
         function escapeHtml(text) {
