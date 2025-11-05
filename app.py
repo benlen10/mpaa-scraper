@@ -27,6 +27,15 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS scrape_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scrape_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            films_added INTEGER,
+            films_skipped INTEGER
+        )
+    ''')
+
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_year ON ratings(year)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_rating ON ratings(rating)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_title ON ratings(film_title)')
@@ -85,6 +94,13 @@ def get_ratings():
     search = request.args.get('search', '')
     year = request.args.get('year', '')
     rating = request.args.get('rating', '')
+    sort_col = request.args.get('sort', 'cert_number')
+    sort_dir = request.args.get('dir', 'desc')
+
+    # Whitelist sortable columns
+    allowed_sorts = ['cert_number', 'film_title', 'year', 'rating']
+    if sort_col not in allowed_sorts:
+        sort_col = 'cert_number'
 
     # Build query
     query = 'SELECT * FROM ratings WHERE 1=1'
@@ -107,8 +123,9 @@ def get_ratings():
     cursor.execute(count_query, params)
     total = cursor.fetchone()[0]
 
-    # Add pagination
-    query += ' ORDER BY year DESC, film_title LIMIT ? OFFSET ?'
+    # Add sorting and pagination
+    order_dir = 'DESC' if sort_dir == 'desc' else 'ASC'
+    query += f' ORDER BY {sort_col} {order_dir} LIMIT ? OFFSET ?'
     params.extend([per_page, (page - 1) * per_page])
 
     cursor.execute(query, params)
@@ -194,8 +211,8 @@ def get_stats():
     cursor.execute('SELECT DISTINCT rating FROM ratings WHERE rating != "" ORDER BY rating')
     ratings = [row[0] for row in cursor.fetchall()]
 
-    cursor.execute('SELECT MAX(created_at) FROM ratings')
-    most_recent_date = cursor.fetchone()[0]
+    cursor.execute('SELECT MAX(scrape_date) FROM scrape_log')
+    last_scrape = cursor.fetchone()[0]
 
     conn.close()
 
@@ -203,7 +220,7 @@ def get_stats():
         'total': total,
         'years': years,
         'ratings': ratings,
-        'most_recent_date': most_recent_date
+        'last_scrape': last_scrape
     })
 
 @app.route('/api/fetch-new-data', methods=['POST'])

@@ -138,6 +138,15 @@ def scrape_year(year):
     conn.close()
     return new_count, skipped_count
 
+def log_scrape_run(films_added, films_skipped):
+    """Log the scrape run to database"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO scrape_log (films_added, films_skipped) VALUES (?, ?)',
+                   (films_added, films_skipped))
+    conn.commit()
+    conn.close()
+
 def main():
     """Main scraper function"""
     start_year = get_max_year_in_db()
@@ -153,6 +162,9 @@ def main():
         new, skipped = scrape_year(year)
         total_new += new
         total_skipped += skipped
+
+    # Log the scrape run
+    log_scrape_run(total_new, total_skipped)
 
     print(f"\n=== Scrape Complete ===")
     print(f"New films added: {total_new}")

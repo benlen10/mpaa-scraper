@@ -191,17 +191,23 @@
             const response = await fetch('/api/stats');
             stats = await response.json();
 
-            const mostRecentDate = stats.most_recent_date ? new Date(stats.most_recent_date).toLocaleDateString() : 'Unknown';
+            const lastScrape = stats.last_scrape ? new Date(stats.last_scrape).toLocaleDateString() : 'Never';
             document.getElementById('stats').innerHTML =
-                `Total: ${stats.total.toLocaleString()} films<br>Most recent: ${mostRecentDate}`;
+                `Total: ${stats.total.toLocaleString()} films<br>Last scrape: ${lastScrape}`;
 
             const yearSelect = document.getElementById('year');
-            stats.years.forEach(year => {
+            const currentYear = new Date().getFullYear();
+
+            // Reverse years to show most recent first
+            stats.years.reverse().forEach(year => {
                 const option = document.createElement('option');
                 option.value = year;
                 option.textContent = year;
                 yearSelect.appendChild(option);
             });
+
+            // Auto-select current year
+            yearSelect.value = currentYear;
 
             const ratingSelect = document.getElementById('rating');
             stats.ratings.forEach(rating => {
@@ -222,7 +228,9 @@
                 per_page: 50,
                 search,
                 year,
-                rating
+                rating,
+                sort: currentSort,
+                dir: currentSortDir
             });
 
             const response = await fetch(`/api/ratings?${params}`);
@@ -230,8 +238,27 @@
 
             totalPages = data.total_pages;
 
+            // Update stats to show filtered count
+            const lastScrape = stats.last_scrape ? new Date(stats.last_scrape).toLocaleDateString() : 'Never';
+            document.getElementById('stats').innerHTML =
+                `Total: ${stats.total.toLocaleString()} films | Showing: ${data.total.toLocaleString()} results<br>Last scrape: ${lastScrape}`;
+
             displayRatings(data.data, data.total);
             updatePagination();
+        }
+
+        let currentSort = 'cert_number';
+        let currentSortDir = 'desc';
+
+        function sortBy(column) {
+            if (currentSort === column) {
+                currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort = column;
+                currentSortDir = 'desc';
+            }
+            currentPage = 1;
+            loadRatings();
         }
 
         function displayRatings(ratings, total) {
@@ -243,30 +270,34 @@
                 return;
             }
 
+            const sortIcon = (col) => {
+                if (currentSort !== col) return '';
+                return currentSortDir === 'asc' ? ' ▲' : ' ▼';
+            };
+
             const table = `
                 <table>
                     <thead>
                         <tr>
-                            <th>Title</th>
-                            <th>Year</th>
-                            <th>Rating</th>
+                            <th onclick="sortBy('cert_number')" style="cursor: pointer">Cert #${sortIcon('cert_number')}</th>
+                            <th onclick="sortBy('film_title')" style="cursor: pointer">Title${sortIcon('film_title')}</th>
+                            <th onclick="sortBy('year')" style="cursor: pointer">Year${sortIcon('year')}</th>
+                            <th onclick="sortBy('rating')" style="cursor: pointer">Rating${sortIcon('rating')}</th>
                             <th>Descriptors</th>
-                            <th>Distributor</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${ratings.map(r => `
                             <tr>
+                                <td>${escapeHtml(r.cert_number || '')}</td>
                                 <td>
                                     <strong>${escapeHtml(r.film_title)}</strong>
-                                    ${r.cert_number ? `<br><span class="cert-number">Cert: ${escapeHtml(r.cert_number)}</span>` : ''}
                                     ${r.alternate_titles ? `<br><span class="cert-number">${escapeHtml(r.alternate_titles)}</span>` : ''}
                                 </td>
                                 <td>${r.year}</td>
                                 <td><span class="rating-badge rating-${r.rating.replace(/[^a-zA-Z0-9]/g, '-')}">${escapeHtml(r.rating)}</span></td>
                                 <td>${escapeHtml(r.descriptors || '')}</td>
-                                <td>${escapeHtml(r.distributor || '')}</td>
                                 <td>${escapeHtml(r.other_notes || '')}</td>
                             </tr>
                         `).join('')}
@@ -356,8 +387,11 @@
         });
 
         // Initialize
-        loadStats();
-        loadRatings();
+        async function init() {
+            await loadStats();
+            loadRatings();
+        }
+        init();
     </script>
 </body>
 </html>
