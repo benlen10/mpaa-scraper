@@ -32,6 +32,24 @@ def insert_film(conn, film_data):
     ''', film_data)
     conn.commit()
 
+def extract_rating_from_descriptor(descriptor):
+    """Extract rating letter from descriptor text like 'Rated R for...'"""
+    import re
+    # Pattern handles: R, PG, PG-13, NC-17, G, etc.
+    # Also handles edge cases like "Rated Rated PG-13" and "PG-13 for..."
+
+    # Try: "Rated [Rated] RATING for..."
+    match = re.match(r'(?:Rated\s+)+([A-Z]+(?:-\d+)?(?:/[A-Z-]+)?)\s+for', descriptor)
+    if match:
+        return match.group(1)
+
+    # Try: "RATING for..." (without "Rated" prefix)
+    match = re.match(r'([A-Z]+(?:-\d+)?(?:/[A-Z-]+)?)\s+for', descriptor)
+    if match:
+        return match.group(1)
+
+    return ''
+
 def parse_film_item(item):
     """Extract film data from an HTML item div"""
     try:
@@ -47,8 +65,9 @@ def parse_film_item(item):
         year_elem = item.find('div', class_='year')
         year = year_elem.text.strip() if year_elem else ''
 
-        # Rating (from image alt)
-        rating_img = item.find('img', class_='')
+        # Rating (from image alt in the rating div)
+        rating_div = item.find('div', class_='image-rating')
+        rating_img = rating_div.find('img') if rating_div else None
         rating = rating_img.get('alt', '') if rating_img else ''
 
         # Extract all body items
@@ -75,6 +94,10 @@ def parse_film_item(item):
                     alternate_titles = value
                 elif 'other' in label_text:
                     other_notes = value
+
+        # Fallback: extract rating from descriptors if rating is empty
+        if not rating and descriptors:
+            rating = extract_rating_from_descriptor(descriptors)
 
         return (cert_number, title, year, rating, descriptors, alternate_titles, other_notes)
 
@@ -120,11 +143,13 @@ def scrape_year(year):
                         skipped_count += 1
                         print(f"    ⊘ SKIPPED: {title}")
                         print(f"      Cert: {cert_number} | Rating: {rating}")
+                        print(f"      Rating: {rating} | Rating: {rating}")
                         print(f"      {descriptors}")
                     else:
                         insert_film(conn, film_data)
                         new_count += 1
                         print(f"    ✓ ADDED: {title}")
+                        print(f"      Rating: {rating} | Rating: {rating}")
                         print(f"      Cert: {cert_number} | Rating: {rating}")
                         print(f"      {descriptors}")
 
